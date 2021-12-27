@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 env:
-  COSMOS_CONNECTION: ${{secrets.DB_PASSWORD}}
+  COSMOS_CONNECTION: ${{secrets.COSMOS_CONNECTION}}
 
 jobs:
   build:
