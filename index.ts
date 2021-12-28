@@ -36,10 +36,13 @@ app.get('/clients/:id', async (req, res) => {
 //Gets all accounts for a client from ID
 app.get('/clients/:id/accounts', async (req, res) => {
     //Get the id from the URI
-    const {id} = req.params;
-    
+    try {
+    const {id} = req.params;   
     const client: Client = await accountService.retrieveClientById(id);
     res.send(client.account);
+    } catch (error) {
+        errorHandler(error, req, res);
+    }
 });
 
 //Get accounts for client in a certain range based on amount
@@ -109,6 +112,7 @@ app.patch('/clients/:id/accounts/:accountName/deposit', async (req, res) => {
     const {amount}:{amount:number} = req.body;
     const id = req.params.id;
 
+    try{
     //Get client from ID
     let client = await accountService.retrieveClientById(id);
     //deposits client's account if names on account are matching
@@ -116,6 +120,9 @@ app.patch('/clients/:id/accounts/:accountName/deposit', async (req, res) => {
 
     //send results in response
     res.send(`Client with ID of ${id} deposited ${amount} to their ${accountName} account`);
+    } catch (error) {
+        errorHandler(error, req, res);
+    }
 });
 
 //Client withdraws from account with a JSON object in body of HTTP request: ex: {"amount":3000}
@@ -125,6 +132,7 @@ app.patch('/clients/:id/accounts/:accountName/withdraw', async (req, res) => {
     const {amount}:{amount:number} = req.body;
     const id = req.params.id;
 
+    try {
     //Get client from ID
     let client = await accountService.retrieveClientById(id);
     //withdraws from client's account if names on account are matching
@@ -132,6 +140,9 @@ app.patch('/clients/:id/accounts/:accountName/withdraw', async (req, res) => {
 
     //send results in response
     res.send(`Client with ID of ${id} withdrew ${amount} from their ${accountName} account`);
+    } catch (error) {
+        errorHandler(error, req, res);
+    }
 });
 
 
