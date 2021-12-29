@@ -1,5 +1,13 @@
+/* index.ts
+ * Author: Justin Bertrand
+ * Description: This is the main entry point for the 
+ *              REST API. Here I define the routes for
+ *              the express server.
+ */
+
+
 import  Express  from "express";
-import ClientDAO, { clientDAOAzure } from "./daos/client_dao";
+import { clientDAOAzure } from "./daos/client_dao";
 import Client from "./Entities/client";
 import Account from "./Entities/account";
 import errorHandler, { ResourceNotFoundError } from "./Errors/error-handle";
@@ -18,7 +26,7 @@ app.get('/clients', async (req, res) => {
         const clients: Client[] = await accountService.retrieveAllClients();
         res.status(200).send(clients);
     } catch (error) {
-        errorHandler(error, req, res);
+        errorHandler(error, res);
     }
 });
 
@@ -29,36 +37,30 @@ app.get('/clients/:id', async (req, res) => {
         const client: Client = await accountService.retrieveClientById(id);
         res.send(client);
     } catch (error) {
-        errorHandler(error, req, res);
+        errorHandler(error, res);
     }
 });
 
-//Gets all accounts for a client from ID
+//Gets all accounts for a client from ID. This also takes optional query parameters
 app.get('/clients/:id/accounts', async (req, res) => {
-    //Get the id from the URI
+    //Get the id from the URI and query
     try {
-    const {id} = req.params;   
-    const client: Client = await accountService.retrieveClientById(id);
-    res.send(client.account);
-    } catch (error) {
-        errorHandler(error, req, res);
-    }
-});
+    const {id}:{id: string} = req.params;
 
-//Get accounts for client in a certain range based on amount
-// that the account should be greater than and amount the account 
-// should be less than
-app.get('/clients/:id/accounts/:greaterThan/:lessThan', async (req, res) => {
-    //Get variables from params in URI
-    const id = req.params.id;
-    const greaterThan = parseInt(req.params.greaterThan);
-    const lessThan = parseInt(req.params.lessThan);
-    
-    //first find the client
+    const greaterThan: number = parseInt(req.query.amountGreaterThan as string, 10);
+    const lessThan: number = parseInt(req.query.amountLessThan as string, 10);
+
     const client: Client = await accountService.retrieveClientById(id);
-    //then make a list of accounts that are between the given amounts
-    const account: Account[] = await accountService.getAccountsByBalance(client, greaterThan, lessThan);
-    res.send(account);
+    
+    if(req.query.amountGreaterThan && req.query.amountLessThan) {
+        const account: Account[] = await accountService.getAccountsByBalance(client, greaterThan, lessThan)
+        res.send(account);
+    } else {
+        res.send(client.account);
+    }
+    } catch (error) {
+        errorHandler(error, res);
+    }
 });
 
 //Add a new Client
@@ -68,7 +70,7 @@ app.post('/clients', async (req, res) => {
         client = await accountService.addClient(client);
         res.status(201).send(client);      
     } catch (error) {
-        errorHandler(error, req, res);
+        errorHandler(error, res);
     }
 });
 
@@ -79,7 +81,7 @@ app.post('/clients/:id/accounts', async (req, res) => {
         await accountService.addAccountToClient(req.params.id, account);
         res.sendStatus(201);
     } catch (error) {
-        errorHandler(error, req, res);
+        errorHandler(error, res);
     }
  });
 
@@ -87,11 +89,12 @@ app.post('/clients/:id/accounts', async (req, res) => {
 //Update a client
 app.put('/clients/:id', async (req, res) => {
     try {
-        const client: Client = req.body;
-        const updatedClient: Client = await clientDAOAzure.updateClient(client);
+        const editedClient: Client = req.body;
+        const updatedClient: Client = await clientDAOAzure.updateClient(editedClient);
         res.send(`Update was successful for: ${updatedClient.id}`);
+        
     } catch (error) {
-        errorHandler(error, req, res);
+       errorHandler(error, res);
     }
 });
 
@@ -99,9 +102,12 @@ app.put('/clients/:id', async (req, res) => {
 app.delete('/clients/:id', async (req, res) => {
     try {
         const deletedClient: boolean = await clientDAOAzure.deleteClientByID(req.params.id);
-        res.status(205).send(`Deleted the client with id: ${req.params.id}`);
+        if(!deletedClient) {
+            throw new ResourceNotFoundError(`The client with id ${req.params.id} could not be found to be deleted`, req.params.id);
+        }
+        res.status(205).send(`Deleted the client with id: ${req.params.id}`);      
     } catch (error) {
-        errorHandler(error, req, res);
+        errorHandler(error, res);
     }
 });
 
@@ -121,7 +127,7 @@ app.patch('/clients/:id/accounts/:accountName/deposit', async (req, res) => {
     //send results in response
     res.send(`Client with ID of ${id} deposited ${amount} to their ${accountName} account`);
     } catch (error) {
-        errorHandler(error, req, res);
+        errorHandler(error, res);
     }
 });
 
@@ -139,13 +145,11 @@ app.patch('/clients/:id/accounts/:accountName/withdraw', async (req, res) => {
     client = await accountService.withdrawFromAccount(client, accountName, amount);
 
     //send results in response
-    res.send(`Client with ID of ${id} withdrew ${amount} from their ${accountName} account`);
+    res.status(200).send(`Client with ID of ${id} withdrew ${amount} from their ${accountName} account`);
     } catch (error) {
-        errorHandler(error, req, res);
+        errorHandler(error, res);
     }
 });
-
-
 
 //Starts Express server on port 3000
 app.listen(3000, () => console.log("Application Started!"));

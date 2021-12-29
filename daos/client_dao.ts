@@ -1,13 +1,15 @@
-/**client_dao.ts
+/* client_dao.ts
  * Author: Justin Bertrand
  * Description: This class implements the methods to access
  *              and modify an Azure database.
  */
 
 import Client from "../Entities/client";
-import { CosmosClient } from "@azure/cosmos";
+import { CosmosClient, ItemResponse, Resource } from "@azure/cosmos";
 import { v4 } from "uuid";
 import { ResourceNotFoundError } from "../Errors/error-handle";
+import { accountService } from "../Services/account-service";
+
 
 //Interfaces make code more portable and easier to reuse
 //Contains the declarations and type specifications for the class.
@@ -31,32 +33,33 @@ class ClientDAOAzure implements ClientDAO {
 
     //creates a new database entry with a client object
     async createClient(client: Client): Promise<Client> {
+        //Uses uuid for random string
         client.id = v4();
+        //Creates a new client item on our DB container
         const response = await this.container.items.create<Client>(client);
+        //If no client account is sent here assign an empty array for now
         client.account = client.account ?? [];
         const { id, fname, lname, account } = response.resource;
         return { id, fname, lname, account };
     }
 
     //returns a client from the db by id
-    async getClientByID(id: string): Promise<Client> {
-        const response = await this.container.item(id, id).read<Client>(); // resource-key, partition-key (the same for most containers)
-        if (!response.resource) {
-            throw new ResourceNotFoundError(
-                `The client with id ${id} was not found`, id);
+    async getClientByID(clientId: string): Promise<Client> {
+        // reads one item based on clientID as resource-key and partition-key (the same for most containers)
+        const client = await this.container.item(clientId, clientId).read<Client>(); 
+        if (!client.resource) {
+           throw new ResourceNotFoundError(
+               `The client with id ${clientId} was not found`, clientId);
         }
-        return {
-            id: response.resource.id,
-            fname: response.resource.fname,
-            lname: response.resource.lname,
-            account: response.resource.account,
-        };
+        const { id, fname, lname, account } = client.resource;
+        return { id, fname, lname, account };
     }
 
     //retrieves all clients from the db
     async getAllClients(): Promise<Client[]> {
-        const response = await this.container.items.readAll<Client>().fetchAll();
-        return response.resources.map((i) => ({
+        // Read all reads all items in container and fetchall returns a single feed response based on the query
+        const clients = await this.container.items.readAll<Client>().fetchAll();
+        return clients.resources.map((i) => ({
             id: i.id,
             fname: i.fname,
             lname: i.lname,
@@ -67,21 +70,17 @@ class ClientDAOAzure implements ClientDAO {
     //updates a client
     async updateClient(client: Client): Promise<Client> {
         //inserts client object
-        const response = await this.container.items.upsert<Client>(client);
-        if (!response.resource) {
+        const updatedClient = await this.container.items.upsert<Client>(client);
+        if (!updatedClient.resource) {
             throw new ResourceNotFoundError(
                 `The client with id ${client.id} was not found`, client.id);
         }
-        return response.resource;
+        return updatedClient.resource;
     }
 
     //deletes a client with an id
     async deleteClientByID(id: string): Promise<boolean> {
-        //const client = await this.getClientByID(id);
         const response = await this.container.item(id, id).delete();
-        //if(!response.resource){
-        //    throw new ResourceNotFoundError(`The client with id ${id} was not found`, id);
-        //}
         return true;
     }
 }
