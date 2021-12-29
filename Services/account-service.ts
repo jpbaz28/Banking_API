@@ -99,6 +99,11 @@ export class AccountServiceImp implements AccountService {
         accountName: string, 
         amount: number
     ): Promise<Client> {
+
+        //check for negative
+        if (amount < 0) {
+            throw new InsufficientFundsError("Cannot deposit a negative number!", client.id);
+        }
         //iterate through array and check if names match. If they do add the 
         //amount to that account
         for (let i = 0; i < client.account.length; i++) {
@@ -119,6 +124,11 @@ export class AccountServiceImp implements AccountService {
         accountName: string, 
         amount: number
     ): Promise<Client> {
+        
+        //check for negative
+        if (amount < 0) {
+             throw new InsufficientFundsError("Cannot withdraw a negative number!", client.id);
+        }
         //iterate through array and check if names match. If they do subtract the 
         //amount from that account
         for (let i = 0; i < client.account.length; i++) {
